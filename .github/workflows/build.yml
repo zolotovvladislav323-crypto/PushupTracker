@@ -1,4 +1,4 @@
-name: Build APK (Google Bubblewrap via Docker)
+name: Build APK (Stable Docker)
 
 on:
   push:
@@ -13,23 +13,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Создаем манифест (если его нет)
+      # Создаем манифест
       - name: Create Web App Manifest
         run: |
           if [ ! -f "manifest.json" ]; then
             echo '{"name": "My App", "short_name": "App", "start_url": "https://example.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "icon.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
           fi
 
-      # Самый стабильный метод: Запускаем Google Bubblewrap через официальный Docker-образ.
-      # Внутри Docker он НЕ задает вопросов и работает безотказно.
-      - name: Build APK using official Docker image
+      # ГЛАВНОЕ ИЗМЕНЕНИЕ: Используем стабильный образ с Docker Hub
+      - name: Build APK
         run: |
-          docker run --rm -v $(pwd):/work -w /work ghcr.io/google/bubblewrap:latest \
-          sh -c "bubblewrap init --manifest manifest.json && bubblewrap build --yes"
+          docker run --rm -v ${PWD}:/work -w /work bubblewrap/bubblewrap \
+          sh -c "bubblewrap init --manifest manifest.json && bubblewrap build"
 
-      # Загружаем результат
+      # Ищем APK. Bubblewrap обычно создает app-release-unsigned.apk в корне
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: app-release.apk
+          path: app-release-unsigned.apk
