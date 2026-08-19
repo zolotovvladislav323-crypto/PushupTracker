@@ -1,4 +1,4 @@
-name: Build APK (Финальная сборка Gradle)
+name: Build APK (Финальная победа)
 
 on:
   push:
@@ -34,25 +34,36 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # ИНИЦИАЛИЗАЦИЯ (Создает папку app и файлы build.gradle)
+      # САМОЕ ГЛАВНОЕ ИЗМЕНЕНИЕ: Используем expect с exp_continue.
+      # Это заставит его точно ввести ВСЕ пути, сколько бы раз ни спросили.
       - name: Initialize Bubblewrap
         run: |
-          printf "n\n%s\nn\n%s\ny\n" "$JAVA_HOME" "$ANDROID_HOME" | script -q /dev/null -c 'bubblewrap init --manifest manifest.json'
+          expect -c '
+          set timeout 30
+          spawn bubblewrap init --manifest manifest.json
+          expect {
+              "Do you want Bubblewrap to install the JDK" { send "n\r"; exp_continue }
+              "Path to your existing JDK" { send "'"$JAVA_HOME"'\r"; exp_continue }
+              "Do you want Bubblewrap to install the Android SDK" { send "n\r"; exp_continue }
+              "Path to your existing Android SDK" { send "'"$ANDROID_HOME"'\r"; exp_continue }
+              "Do you agree to the Android SDK terms" { send "y\r"; exp_continue }
+              eof
+          }
+          '
 
-      # ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ: Мы УБИРАЕМ bubblewrap build!
-      # Вместо него мы используем чистый Gradle. Он не задаёт вопросов.
+      # СБОРКА APK: Указываем модуль явно (:app:assembleDebug)
       - name: Build APK using Gradle
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew :app:assembleDebug
 
-      # Находим APK в любой папке, где его создал Gradle
+      # Находим APK в любой папке
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Проверяем папки:"
-            ls -la
+            echo "❌ APK не найден! Проверяем папку app/build/outputs:"
+            ls -la app/build/outputs/apk/debug/ || true
             exit 1
           fi
           echo "✅ APK найден по пути: $APK_FILE"
