@@ -1,4 +1,4 @@
-name: Build APK (Спасительный финал)
+name: Build APK (Абсолютная победа)
 
 on:
   push:
@@ -34,12 +34,20 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # ВОТ ЕДИНСТВЕННОЕ ИСПРАВЛЕНИЕ:
-      # Мы передаём 3 команды 'echo y', которые отвечают на ВСЕ три вопроса (включая лицензию).
-      # Никаких задержек, просто отправляет три Y сразу.
+      # Устанавливаем инструмент ожидания интерактивных вопросов
+      - name: Install expect
+        run: sudo apt-get update && sudo apt-get install -y expect
+
+      # ФИНАЛЬНОЕ РЕШЕНИЕ: Отвечаем на вопросы строго по очереди, только когда они появляются
       - name: Initialize Bubblewrap
         run: |
-          { echo "y"; echo "y"; echo "y"; } | npx @bubblewrap/cli init --manifest manifest.json
+          expect <<EOF
+          spawn npx @bubblewrap/cli init --manifest manifest.json
+          expect "Do you want Bubblewrap to install the JDK" { send "y\r" }
+          expect "Do you want Bubblewrap to install the Android SDK" { send "y\r" }
+          expect "Do you agree to the Android SDK terms" { send "y\r" }
+          expect eof
+          EOF
 
       - name: Build APK
         run: npx @bubblewrap/cli build
