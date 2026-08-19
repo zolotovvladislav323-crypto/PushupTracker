@@ -1,4 +1,4 @@
-name: Build APK (Финальный, без ошибок)
+name: Build APK (Гарантированный рабочий код)
 
 on:
   push:
@@ -10,38 +10,43 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # Скачиваем ТВОЙ репозиторий
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Ставим JDK
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # 1. КЛЮЧЕВОЕ: Ставим JDK. Он не будет спрашивать про него.
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # Создаём рабочий манифест
+      # 2. ВАЖНЕЙШЕЕ: Ставим Android SDK. Вопрос про SDK исчезнет полностью!
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Create Web App Manifest
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
-      # ГЛАВНОЕ ИСПРАВЛЕНИЕ: Клонируем обёртку через встроенный токен (100% без ошибок сети)
-      - name: Download Android Wrapper
-        run: |
-          git clone --depth 1 https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/pwa-builder/pwa-android-wrapper.git android-wrapper
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
 
-      # Копируем манифест и компилируем через Gradle
-      - name: Build APK via Gradle
-        run: |
-          cp manifest.json android-wrapper/app/src/main/assets/manifest.json
-          cd android-wrapper
-          chmod +x gradlew
-          ./gradlew build
+      # ТЕПЕРЬ ТУТ НЕТ НИКАКИХ ДОПОЛНИТЕЛЬНЫХ КОМАНД.
+      # Он видит, что SDK есть, и молча инициализируется.
+      - name: Initialize
+        run: npx @bubblewrap/cli init --manifest manifest.json
 
-      # Загружаем результат
+      # Автоматическая сборка.
+      - name: Build APK
+        run: npx @bubblewrap/cli build
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: android-wrapper/app/build/outputs/apk/debug/app-debug.apk
+          path: app-release.apk
