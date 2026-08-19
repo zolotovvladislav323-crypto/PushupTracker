@@ -1,4 +1,4 @@
-name: Build APK (Абсолютная победа)
+name: Build APK (Финальная сборка)
 
 on:
   push:
@@ -37,31 +37,24 @@ jobs:
       - name: Install expect
         run: sudo apt-get install -y --no-install-recommends expect
 
-      # Инициализация проекта
+      # ГЛАВНОЕ ИЗМЕНЕНИЕ: Убрали expect. Теперь передаём пути напрямую в аргументы.
       - name: Initialize Bubblewrap
-        run: |
-          expect <<EOF
-          spawn npx @bubblewrap/cli init --manifest manifest.json
-          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
-          expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
-          expect "Do you agree to the Android SDK terms" { send "y\r" }
-          expect eof
-          EOF
+        run: npx @bubblewrap/cli init --manifest manifest.json --jdk-path "$JAVA_HOME" --android-sdk-path "$ANDROID_HOME"
 
-      # ВОТ ИСПРАВЛЕНИЕ: Теперь мы отвечаем НА ВСЕ вопросы (включая вопросы про пути!)
-      - name: Build APK
+      # Сборка APK через expect (здесь мы аккуратно обработаем оставшиеся вопросы)
+      - name: Build APK using Bubblewrap
         run: |
           expect <<EOF
           spawn npx @bubblewrap/cli build
           expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
-          expect "Path to your existing JDK" { send "$JAVA_HOME\r" }
+          expect "Path to your existing JDK" { send "$::env(JAVA_HOME)\r" }
           expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
-          expect "Path to your existing Android SDK" { send "$ANDROID_HOME\r" }
+          expect "Path to your existing Android SDK" { send "$::env(ANDROID_HOME)\r" }
           expect "Do you agree to the Android SDK terms" { send "y\r" }
           expect eof
           EOF
 
-      # Находим APK в любой папке и выкладываем в корень
+      # Находим APK и переименовываем
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
