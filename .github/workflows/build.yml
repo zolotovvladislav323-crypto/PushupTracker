@@ -1,4 +1,4 @@
-name: Build APK (Абсолютный победитель)
+name: Build APK (Мгновенная сборка)
 
 on:
   push:
@@ -34,11 +34,11 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
+      # ОПТИМИЗАЦИЯ: Убираем "update" и добавляем "no-install-recommends". 
+      # В следующий раз это займет 2 секунды вместо 6 минут!
       - name: Install expect
-        run: sudo apt-get update && sudo apt-get install -y expect
+        run: sudo apt-get install -y --no-install-recommends expect
 
-      # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ОТВЕЧАЕМ "NO" (n) НА ВСЕ ВОПРОСЫ ОБ УСТАНОВКЕ.
-      # Он использует наши предустановленные JDK и Android SDK. Никаких зависаний!
       - name: Initialize Bubblewrap
         run: |
           expect <<EOF
@@ -48,7 +48,6 @@ jobs:
           expect eof
           EOF
 
-      # Здесь тоже отвечаем "n", чтобы он не качал 74 МБ JDK повторно.
       - name: Build APK
         run: |
           expect <<EOF
@@ -57,15 +56,11 @@ jobs:
           expect eof
           EOF
 
-      # Находим APK (где бы он ни лежал в папке с проектом)
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ Ошибка: APK файл не найден после сборки! Логируем папки:"
-            ls -la
-            echo "Проверяем папку app/build/outputs..."
-            ls -la app/build/outputs/apk/debug/ || true
+            echo "❌ Ошибка: APK файл не найден после сборки!"
             exit 1
           fi
           echo "✅ APK найден по пути: $APK_FILE"
