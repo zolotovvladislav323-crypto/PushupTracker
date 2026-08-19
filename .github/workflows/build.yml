@@ -1,4 +1,4 @@
-name: Build APK (Финальный победитель)
+name: Build APK (Гарантированная сборка)
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
       - name: Install expect
         run: sudo apt-get install -y --no-install-recommends expect
 
-      # Инициализация (Создаём структуру, отвечая "n" на все вопросы)
+      # Инициализация проекта
       - name: Initialize Bubblewrap
         run: |
           expect <<EOF
@@ -48,19 +48,23 @@ jobs:
           expect eof
           EOF
 
-      # ГЛАВНОЕ ИСПРАВЛЕНИЕ: Явно указываем задачу :app:assembleDebug
-      - name: Build APK via Gradle
+      # ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ. Мы возвращаем нативную команду сборки.
+      # Мы отвечаем "n" на вопрос про JDK (ведь он уже установлен), поэтому скачивания 74 МБ не будет.
+      - name: Build APK using Bubblewrap
         run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon :app:assembleDebug
+          expect <<EOF
+          spawn npx @bubblewrap/cli build
+          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
+          expect eof
+          EOF
 
-      # ГАРАНТИЯ: Находим любой APK в папке проекта
+      # Находим APK в любой папке (на случай, если он поменяет название на app-release-unsigned)
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Вывод дерева папок для поиска:"
-            ls -la app/build/outputs/apk/debug/ || true
+            echo "❌ APK не найден! Проверяем дерево папок:"
+            ls -la
             exit 1
           fi
           echo "✅ APK найден по пути: $APK_FILE"
