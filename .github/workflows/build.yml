@@ -1,4 +1,4 @@
-name: Build APK (Гарантированная сборка)
+name: Build APK (Абсолютная победа)
 
 on:
   push:
@@ -48,23 +48,26 @@ jobs:
           expect eof
           EOF
 
-      # ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ. Мы возвращаем нативную команду сборки.
-      # Мы отвечаем "n" на вопрос про JDK (ведь он уже установлен), поэтому скачивания 74 МБ не будет.
-      - name: Build APK using Bubblewrap
+      # ВОТ ИСПРАВЛЕНИЕ: Теперь мы отвечаем НА ВСЕ вопросы (включая вопросы про пути!)
+      - name: Build APK
         run: |
           expect <<EOF
           spawn npx @bubblewrap/cli build
           expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
+          expect "Path to your existing JDK" { send "$JAVA_HOME\r" }
+          expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
+          expect "Path to your existing Android SDK" { send "$ANDROID_HOME\r" }
+          expect "Do you agree to the Android SDK terms" { send "y\r" }
           expect eof
           EOF
 
-      # Находим APK в любой папке (на случай, если он поменяет название на app-release-unsigned)
+      # Находим APK в любой папке и выкладываем в корень
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Проверяем дерево папок:"
-            ls -la
+            echo "❌ APK не найден! Проверяем папку app/build/outputs:"
+            ls -la app/build/outputs/apk/debug/ || true
             exit 1
           fi
           echo "✅ APK найден по пути: $APK_FILE"
