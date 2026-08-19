@@ -1,1 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Умный Трекер Отжиманий</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #0d0d0d;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    video { display: none; }
+    canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    .overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(18, 18, 18, 0.75);
+      padding: 16px 24px;
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 10;
+    }
+    .stat-box { display: flex; flex-direction: column; }
+    .stat-label { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 1px; }
+    .stat-value { font-size: 42px; font-weight: 900; color: #00ff88; line-height: 1; margin-top: 4px; }
+    .status-text { font-size: 18px; font-weight: 700; color: #ffffff; margin-top: 4px; }
+    .angle-badge {
+      position: absolute;
+      top: 100px;
+      left: 20px;
+      background: rgba(0,0,0,0.6);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #3b82f6;
+    }
+    .controls { position: absolute; bottom: 30px; z-index: 10; }
+    button {
+      background: #00ff88;
+      color: #000;
+      border: none;
+      padding: 16px 36px;
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 40px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4);
+    }
+    button:active { transform: scale(0.95); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <video id="input_video" playsinline></video>
+    <canvas id="output_canvas"></canvas>
+
+    <div class="overlay">
+      <div class="stat-box">
+        <span class="stat-label">Отжимания</span>
+        <span id="counter" class="stat-value">0</span>
+      </div>
+      <div class="stat-box" style="align-items: flex-end;">
+        <span class="stat-label">Статус</span>
+        <span id="stage" class="status-text">Займите упор</span>
+      </div>
+    </div>
+
+    <div id="angle-display" class="angle-badge">Угол: --°</div>
+
+    <div class="controls">
+      <button id="start-btn">Старт</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const videoElement = document.getElementById('input_video');
+      const canvasElement = document.getElementById('output_canvas');
+      const canvasCtx = canvasElement.getContext('2d');
+      const counterEl = document.getElementById('counter');
+      const stageEl = document.getElementById('stage');
+      const angleEl = document.getElementById('angle-display');
+      const startBtn = document.getElementById('start-btn');
+
+      let count = 0;
+      let stage = 'up'; // 'up' или 'down'
+      let camera = null;
+      let isRunning = false;
+      let lastCountTime = 0; // Для защиты от частых ложных срабатываний
+
+      function calculateAngle(a, b, c) {
+        const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+        let angle = Math.abs((radians * 180.0) / Math.PI);
+        if (angle > 180.0) angle = 360 - angle;
+        return angle;
+      }
+
+      function onResults(results) {
+        if (!videoElement.videoWidth) return;
+
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        if (results.poseLandmarks) {
+          const lm = results.poseLandmarks;
+
+          // Отрисовка скелета
+          drawConnectors(canvasCtx, lm, POSE_CONNECTIONS, { color: 'rgba(0, 255, 136, 0.7)', lineWidth: 3 });
+          drawLandmarks(canvasCtx, lm, { color: '#ff0055', lineWidth: 1, radius: 3 });
+
+          // Выбираем сторону (левую или правую), которая видна лучше
+          const leftVis = (lm[11].visibility + lm[13].visibility + lm[15].visibility + lm[23].visibility) / 4;
+          const rightVis = (lm[12].visibility + lm[14].visibility + lm[16].visibility + lm[24].visibility) / 4;
+
+          let shoulder, elbow, wrist, hip, ankle, visibility;
+
+          if (leftVis > rightVis) {
+            shoulder = lm[11]; elbow = lm[13]; wrist = lm[15]; hip = lm[23]; ankle = lm[27];
+            visibility = leftVis;
+          } else {
+            shoulder = lm[12]; elbow = lm[14]; wrist = lm[16]; hip = lm[24]; ankle = lm[28];
+            visibility = rightVis;
+          }
+
+          // Требуем достаточную видимость ключевых точек
+          if (visibility > 0.6) {
+            const armAngle = calculateAngle(shoulder, elbow, wrist);
+            const bodyAngle = calculateAngle(shoulder, hip, ankle); // Проверка прямой спины
+            
+            // Проверка горизонтального положения тела (чтобы не считало стоя)
+            const isHorizontal = Math.abs(shoulder.y - hip.y) < 0.35; 
+
+            angleEl.innerText = `Локоть: ${Math.round(armAngle)}° | Спина: ${Math.round(bodyAngle)}°`;
+
+            // Фильтр 1: Тело должно быть в горизонтальной планке со относительно прямой спиной (>140°)
+            if (bodyAngle > 140 && isHorizontal) {
+              
+              // Фильтр 2: Опускание (Глубокое отжимание < 85 град)
+              if (armAngle < 85 && stage === 'up') {
+                stage = 'down';
+                stageEl.innerText = 'Внизу';
+                stageEl.style.color = '#ff9900';
+              }
+
+              // Фильтр 3: Подъем (> 160 град) + защита по времени (не чаще 1 раза в 700мс)
+              const now = Date.now();
+              if (armAngle > 160 && stage === 'down' && (now - lastCountTime > 700)) {
+                stage = 'up';
+                count++;
+                lastCountTime = now;
+                counterEl.innerText = count;
+                stageEl.innerText = 'Отлично!';
+                stageEl.style.color = '#00ff88';
+              }
+            } else {
+              if (!isHorizontal) {
+                stageEl.innerText = 'Примите упор лежа';
+              } else {
+                stageEl.innerText = 'Держите спину ровно';
+              }
+              stageEl.style.color = '#ff3333';
+            }
+          } else {
+            stageEl.innerText = 'Встаньте в кадр полностью';
+            stageEl.style.color = '#888888';
+            angleEl.innerText = 'Поиск тела...';
+          }
+        }
+        canvasCtx.restore();
+      }
+
+      const pose = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+      });
+
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        minDetectionConfidence: 0.6,
+        minTrackingConfidence: 0.6
+      });
+
+      pose.onResults(onResults);
+
+      async function toggleCamera() {
+        if (!isRunning) {
+          try {
+            camera = new Camera(videoElement, {
+              onFrame: async () => { await pose.send({ image: videoElement }); },
+              width: 1280,
+              height: 720,
+              facingMode: 'user'
+            });
+            await camera.start();
+            startBtn.innerText = 'Стоп';
+            startBtn.style.background = '#ff0055';
+            startBtn.style.color = '#fff';
+            isRunning = true;
+          } catch (err) {
+            alert('Ошибка доступа к камере: ' + err.message);
+          }
+        } else {
+          if (camera) await camera.stop();
+          startBtn.innerText = 'Старт';
+          startBtn.style.background = '#00ff88';
+          startBtn.style.color = '#000';
+          isRunning = false;
+          stageEl.innerText = 'Пауза';
+        }
+      }
+
+      startBtn.addEventListener('click', toggleCamera);
+    });
+  </script>
+</body>
+</html>
 
