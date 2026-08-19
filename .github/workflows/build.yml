@@ -1,4 +1,4 @@
-name: Build APK (Абсолютный финал)
+name: Build APK (Абсолютно чистая сборка)
 
 on:
   push:
@@ -34,45 +34,31 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # ВАЖНОЕ ИСПРАВЛЕНИЕ: Устанавливаем expect до того, как его использовать!
-      - name: Install expect
-        run: sudo apt-get install -y --no-install-recommends expect
+      # САМОЕ ВАЖНОЕ ИЗМЕНЕНИЕ: 
+      # Передаём пути к JDK и SDK прямо в аргументы. Вопросы отменяются!
+      - name: Initialize Bubblewrap (No Interactive)
+        run: bubblewrap init --manifest manifest.json --jdk-path "$JAVA_HOME" --android-sdk-path "$ANDROID_HOME"
 
-      # ИНИЦИАЛИЗАЦИЯ (exp_continue решит проблему повторяющихся вопросов)
-      - name: Initialize Bubblewrap
-        run: |
-          expect -c '
-          set timeout 30
-          spawn bubblewrap init --manifest manifest.json
-          expect {
-              "Do you want Bubblewrap to install the JDK" { send "n\r"; exp_continue }
-              "Path to your existing JDK" { send "'"$JAVA_HOME"'\r"; exp_continue }
-              "Do you want Bubblewrap to install the Android SDK" { send "n\r"; exp_continue }
-              "Path to your existing Android SDK" { send "'"$ANDROID_HOME"'\r"; exp_continue }
-              "Do you agree to the Android SDK terms" { send "y\r"; exp_continue }
-              eof
-          }
-          '
-
-      # СБОРКА: Используем нативный Gradle (он не задаёт вопросов)
+      # ОТКАЗЫВАЕМСЯ ОТ BUBBLEWRAP BUILD. 
+      # Собираем APK через нативный Gradle.
       - name: Build APK using Gradle
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug
 
-      # Поиск APK в любой папке
+      # Находим APK в точной папке
       - name: Find and rename APK
         run: |
-          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          APK_FILE=$(find app/build/outputs/apk -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Проверяем папку app/build/outputs/apk/debug/:"
+            echo "❌ APK не найден! Проверяем папку app/build/outputs/apk:"
             ls -la app/build/outputs/apk/debug/ || true
             exit 1
           fi
           echo "✅ APK найден по пути: $APK_FILE"
           cp "$APK_FILE" ./app-release.apk
 
-      # ЗАГРУЗКА
+      # Загружаем результат
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
