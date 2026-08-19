@@ -1,1 +1,47 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
 
+    <!-- Фон (два прямоугольника) -->
+    <path
+        android:pathData="M12,12 h104 v104 h-104 z"
+        android:fillColor="#0a0a0a"/>
+    <path
+        android:pathData="M16,16 h96 v96 h-96 z"
+        android:fillColor="#1a1a1a"/>
+
+    <!-- Линии руки -->
+    <path
+        android:pathData="M44,44 L68,64 L92,44"
+        android:strokeColor="#00ff88"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="none"/>
+
+    <!-- Суставы (большие круги) -->
+    <!-- Плечо (44,44) r=6 -->
+    <path
+        android:pathData="M44,44 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0"
+        android:fillColor="#00ff88"/>
+    <!-- Локоть (68,64) r=6 -->
+    <path
+        android:pathData="M68,64 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0"
+        android:fillColor="#00ff88"/>
+    <!-- Запястье (92,44) r=6 -->
+    <path
+        android:pathData="M92,44 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0"
+        android:fillColor="#00ff88"/>
+
+    <!-- Центральные точки (маленькие круги) r=2 -->
+    <path
+        android:pathData="M44,44 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"
+        android:fillColor="#0a0a0a"/>
+    <path
+        android:pathData="M68,64 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"
+        android:fillColor="#0a0a0a"/>
+    <path
+        android:pathData="M92,44 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"
+        android:fillColor="#0a0a0a"/>
+</vector>
