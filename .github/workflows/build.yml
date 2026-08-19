@@ -1,4 +1,4 @@
-name: Build APK (Окончательная победа)
+name: Build APK (Последнее решение)
 
 on:
   push:
@@ -31,47 +31,29 @@ jobs:
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
+      # Устанавливаем PWABuilder
+      - name: Install PWABuilder CLI
+        run: npm install -g @pwabuilder/cli
 
-      - name: Install expect
-        run: sudo apt-get install -y --no-install-recommends expect
+      # ПРОСТО И БЕЗ ВОПРОСОВ: Утилита сама соберёт APK
+      - name: Build APK
+        run: npx @pwabuilder/cli package manifest.json android
 
-      # ШАГ 1: ИНИЦИАЛИЗАЦИЯ (Терпеливо отвечаем на вопросы и вводим пути)
-      - name: Initialize Bubblewrap (Fully Automated)
-        run: |
-          expect <<EOF
-          spawn npx @bubblewrap/cli init --manifest manifest.json
-          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
-          expect "Path to your existing JDK" { send "$::env(JAVA_HOME)\r" }
-          expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
-          expect "Path to your existing Android SDK" { send "$::env(ANDROID_HOME)\r" }
-          expect "Do you agree to the Android SDK terms" { send "y\r" }
-          expect eof
-          EOF
-
-      # ШАГ 2: СБОРКА (Повторяем процедуру, чтобы он не вылетел)
-      - name: Build APK (Fully Automated)
-        run: |
-          expect <<EOF
-          spawn npx @bubblewrap/cli build
-          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
-          expect "Path to your existing JDK" { send "$::env(JAVA_HOME)\r" }
-          expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
-          expect "Path to your existing Android SDK" { send "$::env(ANDROID_HOME)\r" }
-          expect "Do you agree to the Android SDK terms" { send "y\r" }
-          expect eof
-          EOF
-
-      # Находим APK в любой папке
+      # Ищем APK в папке dist (обычно pwabuilder складывает туда)
       - name: Find and rename APK
         run: |
-          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          APK_FILE=$(find dist -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Проверяем папки:"
-            ls -la app/build/outputs/apk/debug/ || true
+            echo "❌ APK не найден в папке dist! Ищем по всему проекту..."
+            APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          fi
+          
+          if [ -z "$APK_FILE" ]; then
+            echo "❌ APK всё равно не найден. Вывод структуры папок:"
+            ls -la
             exit 1
           fi
+          
           echo "✅ APK найден по пути: $APK_FILE"
           cp "$APK_FILE" ./app-release.apk
 
