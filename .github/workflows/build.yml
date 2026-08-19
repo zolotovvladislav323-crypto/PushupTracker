@@ -55,13 +55,10 @@ jobs:
           expect eof
           EOF
 
-      # ГЛАВНОЕ ИСПРАВЛЕНИЕ: Ищем ЛЮБОЙ APK файл
+      # ИСПРАВЛЕНИЕ: Ищем APK внутри папки build/outputs/apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: |
-            app-release.apk
-            app-release-unsigned.apk
-            app-debug.apk
-
+            app/build/outputs/apk/**/*.apk
