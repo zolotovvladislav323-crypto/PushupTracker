@@ -1,4 +1,4 @@
-name: Build APK (Идеальное, 100% решение)
+name: Build APK (Финальный финал с PWABuilder)
 
 on:
   push:
@@ -31,21 +31,15 @@ jobs:
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
-      # ВАЖНЕЙШЕЕ ИЗМЕНЕНИЕ: Устанавливаем глобально, убираем npx
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
+      # Устанавливаем PWABuilder (он делает то же самое, но без тупых вопросов)
+      - name: Install PWABuilder CLI
+        run: npm install -g @pwabuilder/cli
 
-      # Инициализация (Никакого npx! Просто bubblewrap)
-      - name: Initialize Bubblewrap
-        run: |
-          ( echo "n"; echo "$JAVA_HOME"; echo "n"; echo "$ANDROID_HOME"; echo "y" ) | bubblewrap init --manifest manifest.json
+      # СБОРКА APK. Одна строка, никаких вопросов.
+      - name: Build APK via PWABuilder
+        run: npx @pwabuilder/cli package --platform android --manifest manifest.json --output dist
 
-      # Сборка (Никакого npx! Просто bubblewrap)
-      - name: Build APK
-        run: |
-          ( echo "n"; echo "$JAVA_HOME"; echo "n"; echo "$ANDROID_HOME"; echo "y" ) | bubblewrap build
-
-      # Находим APK в любой папке
+      # Находим APK в папке dist
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
