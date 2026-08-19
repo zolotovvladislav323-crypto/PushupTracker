@@ -1,4 +1,4 @@
-name: Build APK (Гарантированный рабочий код)
+name: Build APK (Абсолютный финал)
 
 on:
   push:
@@ -18,14 +18,12 @@ jobs:
         with:
           node-version: '18'
 
-      # 1. КЛЮЧЕВОЕ: Ставим JDK. Он не будет спрашивать про него.
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # 2. ВАЖНЕЙШЕЕ: Ставим Android SDK. Вопрос про SDK исчезнет полностью!
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
@@ -36,12 +34,13 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # ТЕПЕРЬ ТУТ НЕТ НИКАКИХ ДОПОЛНИТЕЛЬНЫХ КОМАНД.
-      # Он видит, что SDK есть, и молча инициализируется.
-      - name: Initialize
-        run: npx @bubblewrap/cli init --manifest manifest.json
+      # ГЛАВНОЕ ИСПРАВЛЕНИЕ:
+      # 1-й 'y' отвечает на вопрос про JDK.
+      # sleep 20 даёт время JDK скачаться.
+      # 2-й 'y' отвечает на вопрос про Android SDK.
+      - name: Initialize Bubblewrap
+        run: (echo "y" && sleep 20 && echo "y") | npx @bubblewrap/cli init --manifest manifest.json
 
-      # Автоматическая сборка.
       - name: Build APK
         run: npx @bubblewrap/cli build
 
