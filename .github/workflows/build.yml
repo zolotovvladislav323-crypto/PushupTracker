@@ -1,4 +1,4 @@
-name: Build APK (Абсолютный победитель)
+name: Build APK (Финальный, гарантированный)
 
 on:
   push:
@@ -31,29 +31,24 @@ jobs:
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
+      # ВАЖНО: Ставим старый pwabuilder, а не @pwabuilder/cli
+      - name: Install PWABuilder
+        run: npm install -g pwabuilder
 
-      # UNBUFFER УЖЕ УСТАНОВЛЕН, ТАК КАК ОН ВХОДИТ В ПАКЕТ EXPECT
-      - name: Install expect (для unbuffer)
-        run: sudo apt-get install -y --no-install-recommends expect
-
-      # ИНИЦИАЛИЗАЦИЯ (unbuffer спасает нас от разрыва канала)
-      - name: Initialize Bubblewrap
-        run: |
-          unbuffer sh -c "echo 'n'; echo '$JAVA_HOME'; echo 'n'; echo '$ANDROID_HOME'; echo 'y'" | bubblewrap init --manifest manifest.json
-
-      # СБОРКА (та же тактика. За 1 секунду получает все ответы на вопрос)
+      # СБОРКА: Эта команда не задаёт диалоговых вопросов
       - name: Build APK
-        run: |
-          unbuffer sh -c "echo 'n'; echo '$JAVA_HOME'; echo 'n'; echo '$ANDROID_HOME'; echo 'y'" | bubblewrap build
+        run: pwabuilder package -p android -m manifest.json -o dist
 
-      # Поиск APK
+      # Находим APK в папке dist (куда его положил pwabuilder)
       - name: Find and rename APK
         run: |
-          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          APK_FILE=$(find dist -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Проверяем папки:"
+            APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          fi
+          
+          if [ -z "$APK_FILE" ]; then
+            echo "❌ APK не найден! Вывод папок:"
             ls -la
             exit 1
           fi
