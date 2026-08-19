@@ -1,4 +1,4 @@
-name: Build APK (Абсолютная и окончательная победа)
+name: Build APK (Финальная победа)
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # Манифест с безопасной встроенной SVG иконкой (без ошибок Invalid URL)
+      # Безопасный манифест с встроенной SVG-иконкой
       - name: Create Web App Manifest
         run: |
           cat > manifest.json <<EOF
@@ -52,32 +52,28 @@ jobs:
       - name: Install expect
         run: sudo apt-get install -y --no-install-recommends expect
 
-      # ПРАВИЛЬНЫЙ expect: Отвечаем на ВСЕ вопросы, даже про пути к JDK/SDK!
-      - name: Generate TWA Project
+      # ГЛАВНОЕ ИСПРАВЛЕНИЕ: Используем init (а не generate) и убираем exp_continue, чтобы не было зацикливания.
+      - name: Initialize TWA Project
         run: |
           expect <<EOF
-          set timeout 60
-          spawn npx @bubblewrap/cli generate --manifest manifest.json --output android
-          expect {
-              "Do you want Bubblewrap to install the JDK" { send "n\r"; exp_continue }
-              "Path to your existing JDK" { send "$::env(JAVA_HOME)\r"; exp_continue }
-              "Do you want Bubblewrap to install the Android SDK" { send "n\r"; exp_continue }
-              "Path to your existing Android SDK" { send "$::env(ANDROID_HOME)\r"; exp_continue }
-              "Do you agree to the Android SDK terms" { send "y\r"; exp_continue }
-              eof { exit 0 }
-          }
+          spawn npx @bubblewrap/cli init --manifest manifest.json
+          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
+          expect "Path to your existing JDK" { send "$::env(JAVA_HOME)\r" }
+          expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
+          expect "Path to your existing Android SDK" { send "$::env(ANDROID_HOME)\r" }
+          expect "Do you agree to the Android SDK terms" { send "y\r" }
+          expect eof
           EOF
 
-      # СБОРКА: Заходим в созданную папку android и компилируем
+      # ВАЖНО: Так как init создает проект в корне, мы убираем переход cd android.
       - name: Build APK using Gradle
         run: |
-          cd android
           chmod +x gradlew
           ./gradlew :app:assembleDebug
 
-      # Итоговый путь к файлу
+      # Исправляем путь к APK (теперь он в корневой папке app)
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
