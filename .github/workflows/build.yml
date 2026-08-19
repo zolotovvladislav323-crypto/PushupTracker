@@ -1,4 +1,4 @@
-name: Build APK (Идеальная сборка)
+name: Build APK (Финальная сборка Gradle)
 
 on:
   push:
@@ -34,16 +34,19 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # Главный секрет: команда 'script' имитирует реальный терминал, чтобы конвейер не разрывался.
+      # ИНИЦИАЛИЗАЦИЯ (Создает папку app и файлы build.gradle)
       - name: Initialize Bubblewrap
         run: |
           printf "n\n%s\nn\n%s\ny\n" "$JAVA_HOME" "$ANDROID_HOME" | script -q /dev/null -c 'bubblewrap init --manifest manifest.json'
 
-      - name: Build APK
+      # ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ: Мы УБИРАЕМ bubblewrap build!
+      # Вместо него мы используем чистый Gradle. Он не задаёт вопросов.
+      - name: Build APK using Gradle
         run: |
-          printf "n\n%s\nn\n%s\ny\n" "$JAVA_HOME" "$ANDROID_HOME" | script -q /dev/null -c 'bubblewrap build'
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
-      # Находим APK, где бы он ни лежал
+      # Находим APK в любой папке, где его создал Gradle
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
