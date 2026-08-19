@@ -1,4 +1,4 @@
-name: Build APK (Абсолютная победа)
+name: Build APK (Абсолютная и окончательная победа)
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # Манифест с безопасной встроенной иконкой (никаких внешних URL-адресов)
+      # Манифест с безопасной встроенной SVG иконкой (без ошибок Invalid URL)
       - name: Create Web App Manifest
         run: |
           cat > manifest.json <<EOF
@@ -52,25 +52,30 @@ jobs:
       - name: Install expect
         run: sudo apt-get install -y --no-install-recommends expect
 
-      # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Не отправляем пути. Отвечаем строго на 3 вопроса.
+      # ПРАВИЛЬНЫЙ expect: Отвечаем на ВСЕ вопросы, даже про пути к JDK/SDK!
       - name: Generate TWA Project
         run: |
           expect <<EOF
+          set timeout 60
           spawn npx @bubblewrap/cli generate --manifest manifest.json --output android
-          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
-          expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
-          expect "Do you agree to the Android SDK terms" { send "y\r" }
-          expect eof
+          expect {
+              "Do you want Bubblewrap to install the JDK" { send "n\r"; exp_continue }
+              "Path to your existing JDK" { send "$::env(JAVA_HOME)\r"; exp_continue }
+              "Do you want Bubblewrap to install the Android SDK" { send "n\r"; exp_continue }
+              "Path to your existing Android SDK" { send "$::env(ANDROID_HOME)\r"; exp_continue }
+              "Do you agree to the Android SDK terms" { send "y\r"; exp_continue }
+              eof { exit 0 }
+          }
           EOF
 
-      # Чистая сборка через Gradle в папке android
+      # СБОРКА: Заходим в созданную папку android и компилируем
       - name: Build APK using Gradle
         run: |
           cd android
           chmod +x gradlew
           ./gradlew :app:assembleDebug
 
-      # Точный путь к APK
+      # Итоговый путь к файлу
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
