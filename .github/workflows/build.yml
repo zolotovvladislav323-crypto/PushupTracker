@@ -1,4 +1,4 @@
-name: Build APK (Финальная победа)
+name: Build APK (Абсолютный финал)
 
 on:
   push:
@@ -34,8 +34,11 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # САМОЕ ГЛАВНОЕ ИЗМЕНЕНИЕ: Используем expect с exp_continue.
-      # Это заставит его точно ввести ВСЕ пути, сколько бы раз ни спросили.
+      # ВАЖНОЕ ИСПРАВЛЕНИЕ: Устанавливаем expect до того, как его использовать!
+      - name: Install expect
+        run: sudo apt-get install -y --no-install-recommends expect
+
+      # ИНИЦИАЛИЗАЦИЯ (exp_continue решит проблему повторяющихся вопросов)
       - name: Initialize Bubblewrap
         run: |
           expect -c '
@@ -51,24 +54,25 @@ jobs:
           }
           '
 
-      # СБОРКА APK: Указываем модуль явно (:app:assembleDebug)
+      # СБОРКА: Используем нативный Gradle (он не задаёт вопросов)
       - name: Build APK using Gradle
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug
 
-      # Находим APK в любой папке
+      # Поиск APK в любой папке
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Проверяем папку app/build/outputs:"
+            echo "❌ APK не найден! Проверяем папку app/build/outputs/apk/debug/:"
             ls -la app/build/outputs/apk/debug/ || true
             exit 1
           fi
           echo "✅ APK найден по пути: $APK_FILE"
           cp "$APK_FILE" ./app-release.apk
 
+      # ЗАГРУЗКА
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
