@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: '18'
 
-      # Установка JDK (для страховки)
+      # Оставляем JDK, чтобы ему не пришлось качать его через npx
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
@@ -28,20 +28,22 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
+      # Создаем манифест, если нет
       - name: Create Web App Manifest
         run: |
           if [ ! -f "manifest.json" ]; then
             echo '{"name": "My App", "short_name": "App", "start_url": "https://example.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "icon.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
           fi
 
-      # ВАЖНО: Отвечаем "Да" на вопрос про JDK И про Android SDK
-      - name: Initialize Bubblewrap
+      # ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: 
+      # 1. DEBIAN_FRONTEND=noninteractive отключает все интерактивные вопросы
+      # 2. Флаг --yes гарантирует согласие
+      # 3. Весь шаг объединен в одну строку
+      - name: Initialize and Build (Полностью автономно)
         run: |
-          printf "Y\nY\n" | npx @bubblewrap/cli init --manifest manifest.json
-
-      # На этапе сборки тоже ставим --yes, чтобы не было лишних вопросов
-      - name: Build APK
-        run: npx @bubblewrap/cli build --yes
+          export DEBIAN_FRONTEND=noninteractive
+          npx @bubblewrap/cli init --manifest manifest.json --yes
+          npx @bubblewrap/cli build --yes
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
