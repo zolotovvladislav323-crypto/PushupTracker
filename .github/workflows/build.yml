@@ -1,4 +1,4 @@
-name: Build APK (Гарантированная сборка без Bubblewrap)
+name: Build APK (Окончательный конец мучениям)
 
 on:
   push:
@@ -8,9 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout repository (твой проект)
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -31,28 +31,38 @@ jobs:
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
-      # САМОЕ ВАЖНОЕ: Скачиваем обёртку через официальный экшн (не git clone)
-      # Это 100% исключает ошибки 404 и отказ в доступе.
-      - name: Checkout PWABuilder Wrapper
-        uses: actions/checkout@v4
-        with:
-          repository: 'PWABuilder/pwa-android-wrapper'
-          path: 'android-wrapper'
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
 
-      # Копируем манифест в проект
-      - name: Prepare Wrapper
-        run: cp manifest.json android-wrapper/app/src/main/assets/manifest.json
+      - name: Install expect
+        run: sudo apt-get install -y --no-install-recommends expect
 
-      # Собираем нативный APK
+      # ИНИЦИАЛИЗАЦИЯ – без лишних флагов, только манифест
+      - name: Initialize Bubblewrap
+        run: |
+          expect <<EOF
+          set timeout 60
+          spawn bubblewrap init --manifest manifest.json
+          expect {
+              "Do you want Bubblewrap to install the JDK" { send "n\r"; exp_continue }
+              "Path to your existing JDK" { send "$JAVA_HOME\r"; exp_continue }
+              "Do you want Bubblewrap to install the Android SDK" { send "n\r"; exp_continue }
+              "Path to your existing Android SDK" { send "$ANDROID_HOME\r"; exp_continue }
+              "Do you agree to the Android SDK terms" { send "y\r"; exp_continue }
+              eof { exit 0 }
+          }
+          EOF
+
+      # СБОРКА через Gradle (внутри папки android)
       - name: Build APK using Gradle
         run: |
-          cd android-wrapper
+          cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew :app:assembleDebug
 
-      # Загружаем артефакт
+      # ЗАГРУЗКА APK по правильному пути
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: android-wrapper/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
