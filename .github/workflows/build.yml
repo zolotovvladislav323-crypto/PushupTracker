@@ -1,4 +1,4 @@
-name: Build APK (Убойная финальная версия)
+name: Build APK (Абсолютная победа)
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # ИСПРАВЛЕНИЕ ОШИБКИ Invalid URL: добавляем встроенную SVG-иконку
+      # Манифест с безопасной встроенной иконкой (никаких внешних URL-адресов)
       - name: Create Web App Manifest
         run: |
           cat > manifest.json <<EOF
@@ -49,18 +49,28 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: generate вместо init. Больше не нужен expect!
-      - name: Generate TWA Project
-        run: npx @bubblewrap/cli generate --manifest manifest.json --output android
+      - name: Install expect
+        run: sudo apt-get install -y --no-install-recommends expect
 
-      # СБОРКА: Собираем через нативный Gradle
+      # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Не отправляем пути. Отвечаем строго на 3 вопроса.
+      - name: Generate TWA Project
+        run: |
+          expect <<EOF
+          spawn npx @bubblewrap/cli generate --manifest manifest.json --output android
+          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
+          expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
+          expect "Do you agree to the Android SDK terms" { send "y\r" }
+          expect eof
+          EOF
+
+      # Чистая сборка через Gradle в папке android
       - name: Build APK using Gradle
         run: |
           cd android
           chmod +x gradlew
           ./gradlew :app:assembleDebug
 
-      # ЗАГРУЗКА ПО ПРАВИЛЬНОМУ ПУТИ
+      # Точный путь к APK
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
