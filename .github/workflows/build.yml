@@ -1,4 +1,4 @@
-name: Build APK (Финальная победа)
+name: Build APK (Идеальная, рабочая версия)
 
 on:
   push:
@@ -27,24 +27,10 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # Безопасный манифест с встроенной SVG-иконкой
+      # ФИКС ОШИБКИ Invalid URL: используем надёжный URL логотипа Google
       - name: Create Web App Manifest
         run: |
-          cat > manifest.json <<EOF
-          {
-            "name": "My App",
-            "short_name": "App",
-            "start_url": "https://www.google.com",
-            "display": "standalone",
-            "background_color": "#ffffff",
-            "theme_color": "#000000",
-            "icons": [{
-              "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' font-size='100' text-anchor='middle' dy='.3em' fill='white'%3EApp%3C/text%3E%3C/svg%3E",
-              "sizes": "512x512",
-              "type": "image/svg+xml"
-            }]
-          }
-          EOF
+          echo '{"name":"My App","short_name":"App","start_url":"https://www.google.com","display":"standalone","background_color":"#ffffff","theme_color":"#000000","icons":[{"src":"https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png","sizes":"512x512","type":"image/png"}]}' > manifest.json
 
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
@@ -52,26 +38,26 @@ jobs:
       - name: Install expect
         run: sudo apt-get install -y --no-install-recommends expect
 
-      # ГЛАВНОЕ ИСПРАВЛЕНИЕ: Используем init (а не generate) и убираем exp_continue, чтобы не было зацикливания.
+      # ФИКС LOGIC: Убираем exp_continue, чтобы не спамило. Отвечаем строго по порядку.
       - name: Initialize TWA Project
         run: |
           expect <<EOF
           spawn npx @bubblewrap/cli init --manifest manifest.json
           expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
-          expect "Path to your existing JDK" { send "$::env(JAVA_HOME)\r" }
+          expect "Path to your existing JDK" { send "$env(JAVA_HOME)\r" }
           expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
-          expect "Path to your existing Android SDK" { send "$::env(ANDROID_HOME)\r" }
+          expect "Path to your existing Android SDK" { send "$env(ANDROID_HOME)\r" }
           expect "Do you agree to the Android SDK terms" { send "y\r" }
           expect eof
           EOF
 
-      # ВАЖНО: Так как init создает проект в корне, мы убираем переход cd android.
+      # ФИКС ПАПОК: Bubblewrap init создаёт файлы в корне, а не в папке android
       - name: Build APK using Gradle
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug
 
-      # Исправляем путь к APK (теперь он в корневой папке app)
+      # ФИКС ПУТИ: Ищем APK в корневой папке app
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
