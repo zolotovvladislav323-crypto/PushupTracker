@@ -34,11 +34,9 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # Утилита expect уже установлена для предыдущего шага, она поможет и здесь
       - name: Install expect
         run: sudo apt-get update && sudo apt-get install -y expect
 
-      # Инициализация (работает без ошибок благодаря expect)
       - name: Initialize Bubblewrap
         run: |
           expect <<EOF
@@ -49,7 +47,6 @@ jobs:
           expect eof
           EOF
 
-      # СБОРКА (Исправленный шаг! Ожидаем вопрос и отвечаем "y")
       - name: Build APK
         run: |
           expect <<EOF
@@ -58,8 +55,12 @@ jobs:
           expect eof
           EOF
 
+      # ГЛАВНОЕ ИСПРАВЛЕНИЕ: Ищем ЛЮБОЙ APK файл
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: app-release.apk
+          path: |
+            app-release.apk
+            app-release-unsigned.apk
+            app-debug.apk
