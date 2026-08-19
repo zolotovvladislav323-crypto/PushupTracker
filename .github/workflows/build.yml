@@ -13,20 +13,42 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
-        java-version: '17'
-        distribution: 'temurin'
+        node-version: '18'
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    - name: Install Bubblewrap
+      run: npm install -g @bubblewrap/cli
 
-    - name: Build APK
-      run: ./gradlew assembleRelease
+    - name: Create Web App Manifest
+      run: |
+        cat > manifest.json << EOF
+        {
+          "name": "Pushup Tracker",
+          "short_name": "Pushup",
+          "start_url": "index.html",
+          "display": "standalone",
+          "background_color": "#0d0d0d",
+          "theme_color": "#00ff88",
+          "orientation": "portrait",
+          "icons": [
+            {
+              "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💪</text></svg>",
+              "sizes": "192x192",
+              "type": "image/svg+xml"
+            }
+          ]
+        }
+        EOF
+
+    - name: Build APK with Bubblewrap
+      run: |
+        npx @bubblewrap/cli init --manifest manifest.json
+        npx @bubblewrap/cli build
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
-        path: app/build/outputs/apk/release/*.apk
+        name: pushup-tracker
+        path: app-release.apk
