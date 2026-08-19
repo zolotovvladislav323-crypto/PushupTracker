@@ -1,4 +1,4 @@
-name: Build Android APK (PWABuilder Manual)
+name: Build Android APK (PWABuilder Working)
 
 on:
   push:
@@ -24,28 +24,28 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # Создаем манифест (если его нет)
+      # Создаем манифест
       - name: Create Web App Manifest
         run: |
           if [ ! -f "manifest.json" ]; then
             echo '{"name": "My App", "short_name": "App", "start_url": "https://example.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "icon.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
           fi
 
-      # Устанавливаем PWABuilder и скачиваем заготовку для Android
-      - name: Setup PWABuilder Android Wrapper
+      # ИЗМЕНЕНИЕ: Скачиваем ZIP вместо git clone (без авторизации)
+      - name: Download PWABuilder Android Wrapper
         run: |
-          npm install -g @pwabuilder/cli
-          # Скачиваем официальный шаблон Android от Microsoft
-          git clone https://github.com/pwa-builder/pwa-android-wrapper.git
+          wget https://github.com/pwa-builder/pwa-android-wrapper/archive/refs/heads/main.zip
+          unzip main.zip
+          mv pwa-android-wrapper-main pwa-android-wrapper
 
-      # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Копируем наш манифест внутрь шаблона и запускаем сборку
+      # Сборка
       - name: Build APK
         run: |
           cp manifest.json pwa-android-wrapper/app/src/main/assets/manifest.json
           cd pwa-android-wrapper
+          chmod +x gradlew
           ./gradlew build
 
-      # Ищем APK в папке, куда его обычно складывает Gradle
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
