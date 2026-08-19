@@ -1,4 +1,4 @@
-name: Build APK (Окончательная победа)
+name: Build APK (Идеальная сборка)
 
 on:
   push:
@@ -31,21 +31,32 @@ jobs:
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
-      # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Исправленный адрес репозитория PWABuilder
-      - name: Download Android Wrapper
-        run: git clone --depth 1 https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/PWABuilder/pwa-android-wrapper.git android-wrapper
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
 
-      # Копируем манифест и запускаем нативную сборку Gradle
-      - name: Build APK using Gradle
+      # Главный секрет: команда 'script' имитирует реальный терминал, чтобы конвейер не разрывался.
+      - name: Initialize Bubblewrap
         run: |
-          cp manifest.json android-wrapper/app/src/main/assets/manifest.json
-          cd android-wrapper
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          printf "n\n%s\nn\n%s\ny\n" "$JAVA_HOME" "$ANDROID_HOME" | script -q /dev/null -c 'bubblewrap init --manifest manifest.json'
 
-      # Загружаем APK из точной папки
+      - name: Build APK
+        run: |
+          printf "n\n%s\nn\n%s\ny\n" "$JAVA_HOME" "$ANDROID_HOME" | script -q /dev/null -c 'bubblewrap build'
+
+      # Находим APK, где бы он ни лежал
+      - name: Find and rename APK
+        run: |
+          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "❌ APK не найден! Проверяем папки:"
+            ls -la
+            exit 1
+          fi
+          echo "✅ APK найден по пути: $APK_FILE"
+          cp "$APK_FILE" ./app-release.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: android-wrapper/app/build/outputs/apk/debug/app-debug.apk
+          path: ./app-release.apk
