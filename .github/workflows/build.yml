@@ -1,4 +1,4 @@
-name: Build APK (Финальная сборка)
+name: Build APK (Окончательная победа)
 
 on:
   push:
@@ -37,12 +37,21 @@ jobs:
       - name: Install expect
         run: sudo apt-get install -y --no-install-recommends expect
 
-      # ГЛАВНОЕ ИЗМЕНЕНИЕ: Убрали expect. Теперь передаём пути напрямую в аргументы.
-      - name: Initialize Bubblewrap
-        run: npx @bubblewrap/cli init --manifest manifest.json --jdk-path "$JAVA_HOME" --android-sdk-path "$ANDROID_HOME"
+      # ШАГ 1: ИНИЦИАЛИЗАЦИЯ (Терпеливо отвечаем на вопросы и вводим пути)
+      - name: Initialize Bubblewrap (Fully Automated)
+        run: |
+          expect <<EOF
+          spawn npx @bubblewrap/cli init --manifest manifest.json
+          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
+          expect "Path to your existing JDK" { send "$::env(JAVA_HOME)\r" }
+          expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
+          expect "Path to your existing Android SDK" { send "$::env(ANDROID_HOME)\r" }
+          expect "Do you agree to the Android SDK terms" { send "y\r" }
+          expect eof
+          EOF
 
-      # Сборка APK через expect (здесь мы аккуратно обработаем оставшиеся вопросы)
-      - name: Build APK using Bubblewrap
+      # ШАГ 2: СБОРКА (Повторяем процедуру, чтобы он не вылетел)
+      - name: Build APK (Fully Automated)
         run: |
           expect <<EOF
           spawn npx @bubblewrap/cli build
@@ -54,12 +63,12 @@ jobs:
           expect eof
           EOF
 
-      # Находим APK и переименовываем
+      # Находим APK в любой папке
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Проверяем папку app/build/outputs:"
+            echo "❌ APK не найден! Проверяем папки:"
             ls -la app/build/outputs/apk/debug/ || true
             exit 1
           fi
