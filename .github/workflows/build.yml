@@ -18,6 +18,13 @@ jobs:
         with:
           node-version: '18'
 
+      # ВАЖНОЕ ИСПРАВЛЕНИЕ: Заранее ставим JDK, чтобы Bubblewrap не задавал вопрос
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
@@ -27,11 +34,12 @@ jobs:
             echo '{"name": "My App", "short_name": "App", "start_url": "https://example.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "icon.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
           fi
 
-      - name: Initialize Bubblewrap (с авто-согласием)
-        run: npx @bubblewrap/cli init --manifest manifest.json --yes
+      # Убираем --yes из этой строки (он тут все равно не работает), 
+      # теперь вопрос про JDK задаваться не будет
+      - name: Initialize Bubblewrap
+        run: npx @bubblewrap/cli init --manifest manifest.json
 
-      - name: Build APK (с авто-согласием на JDK)
-        # Ключевое исправление здесь: добавлен флаг --yes в конце
+      - name: Build APK
         run: npx @bubblewrap/cli build --yes
 
       - name: Upload APK artifact
