@@ -1,4 +1,4 @@
-name: Build APK (Абсолютный финал)
+name: Build APK (Спасительный финал)
 
 on:
   push:
@@ -34,12 +34,12 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # ГЛАВНОЕ ИСПРАВЛЕНИЕ:
-      # 1-й 'y' отвечает на вопрос про JDK.
-      # sleep 20 даёт время JDK скачаться.
-      # 2-й 'y' отвечает на вопрос про Android SDK.
+      # ВОТ ЕДИНСТВЕННОЕ ИСПРАВЛЕНИЕ:
+      # Мы передаём 3 команды 'echo y', которые отвечают на ВСЕ три вопроса (включая лицензию).
+      # Никаких задержек, просто отправляет три Y сразу.
       - name: Initialize Bubblewrap
-        run: (echo "y" && sleep 20 && echo "y") | npx @bubblewrap/cli init --manifest manifest.json
+        run: |
+          { echo "y"; echo "y"; echo "y"; } | npx @bubblewrap/cli init --manifest manifest.json
 
       - name: Build APK
         run: npx @bubblewrap/cli build
