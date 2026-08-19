@@ -1,4 +1,4 @@
-name: Build APK (Идеальный финал)
+name: Build APK (Финальный, без ошибок)
 
 on:
   push:
@@ -10,30 +10,28 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # 1. Скачиваем ТВОЙ репозиторий
+      # Скачиваем ТВОЙ репозиторий
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Скачиваем ГОТОВУЮ Android-обёртку (без ошибок сети!)
-      - name: Checkout Android Wrapper
-        uses: actions/checkout@v4
-        with:
-          repository: pwa-builder/pwa-android-wrapper
-          path: android-wrapper
-
-      # 3. Ставим JDK
+      # Ставим JDK
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # 4. Создаём манифест
+      # Создаём рабочий манифест
       - name: Create Web App Manifest
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
-      # 5. Копируем манифест и собираем нативный APK!
+      # ГЛАВНОЕ ИСПРАВЛЕНИЕ: Клонируем обёртку через встроенный токен (100% без ошибок сети)
+      - name: Download Android Wrapper
+        run: |
+          git clone --depth 1 https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/pwa-builder/pwa-android-wrapper.git android-wrapper
+
+      # Копируем манифест и компилируем через Gradle
       - name: Build APK via Gradle
         run: |
           cp manifest.json android-wrapper/app/src/main/assets/manifest.json
@@ -41,7 +39,7 @@ jobs:
           chmod +x gradlew
           ./gradlew build
 
-      # 6. Загружаем результат
+      # Загружаем результат
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
