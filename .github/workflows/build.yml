@@ -1,4 +1,4 @@
-name: Build APK (Идеальное решение)
+name: Build APK (Идеальное, 100% решение)
 
 on:
   push:
@@ -31,18 +31,19 @@ jobs:
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
+      # ВАЖНЕЙШЕЕ ИЗМЕНЕНИЕ: Устанавливаем глобально, убираем npx
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # БОЛЬШЕ НИКАКОГО EXPECT. Мы отправляем ответы по очереди с паузами в 2 секунды.
+      # Инициализация (Никакого npx! Просто bubblewrap)
       - name: Initialize Bubblewrap
         run: |
-          ( echo "n"; sleep 2; echo "$JAVA_HOME"; sleep 2; echo "n"; sleep 2; echo "$ANDROID_HOME"; sleep 2; echo "y" ) | npx @bubblewrap/cli init --manifest manifest.json
+          ( echo "n"; echo "$JAVA_HOME"; echo "n"; echo "$ANDROID_HOME"; echo "y" ) | bubblewrap init --manifest manifest.json
 
-      # Абсолютно та же логика для сборки
+      # Сборка (Никакого npx! Просто bubblewrap)
       - name: Build APK
         run: |
-          ( echo "n"; sleep 2; echo "$JAVA_HOME"; sleep 2; echo "n"; sleep 2; echo "$ANDROID_HOME"; sleep 2; echo "y" ) | npx @bubblewrap/cli build
+          ( echo "n"; echo "$JAVA_HOME"; echo "n"; echo "$ANDROID_HOME"; echo "y" ) | bubblewrap build
 
       # Находим APK в любой папке
       - name: Find and rename APK
