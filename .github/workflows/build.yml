@@ -1,4 +1,4 @@
-name: Build APK (Финальный финал)
+name: Build APK (Идеальное решение)
 
 on:
   push:
@@ -34,17 +34,17 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # Инициализация (Отвечаем на 5 вопросов через группу команд Bash)
+      # БОЛЬШЕ НИКАКОГО EXPECT. Мы отправляем ответы по очереди с паузами в 2 секунды.
       - name: Initialize Bubblewrap
         run: |
-          ( echo "n"; echo "$JAVA_HOME"; echo "n"; echo "$ANDROID_HOME"; echo "y" ) | npx @bubblewrap/cli init --manifest manifest.json
+          ( echo "n"; sleep 2; echo "$JAVA_HOME"; sleep 2; echo "n"; sleep 2; echo "$ANDROID_HOME"; sleep 2; echo "y" ) | npx @bubblewrap/cli init --manifest manifest.json
 
-      # Сборка (Повторяем ту же процедуру для финальной компиляции)
+      # Абсолютно та же логика для сборки
       - name: Build APK
         run: |
-          ( echo "n"; echo "$JAVA_HOME"; echo "n"; echo "$ANDROID_HOME"; echo "y" ) | npx @bubblewrap/cli build
+          ( echo "n"; sleep 2; echo "$JAVA_HOME"; sleep 2; echo "n"; sleep 2; echo "$ANDROID_HOME"; sleep 2; echo "y" ) | npx @bubblewrap/cli build
 
-      # Поиск APK в любой папке (где бы он ни спрятался)
+      # Находим APK в любой папке
       - name: Find and rename APK
         run: |
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
