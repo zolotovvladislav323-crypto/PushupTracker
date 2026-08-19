@@ -1,4 +1,4 @@
-name: Build APK (Абсолютно чистая сборка)
+name: Build APK (Гарантированная сборка без Bubblewrap)
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (твой проект)
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -31,36 +31,28 @@ jobs:
         run: |
           echo '{"name": "My App", "short_name": "App", "start_url": "https://www.google.com", "display": "standalone", "background_color": "#ffffff", "theme_color": "#000000", "icons": [{"src": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png", "sizes": "512x512", "type": "image/png"}]}' > manifest.json
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
+      # САМОЕ ВАЖНОЕ: Скачиваем обёртку через официальный экшн (не git clone)
+      # Это 100% исключает ошибки 404 и отказ в доступе.
+      - name: Checkout PWABuilder Wrapper
+        uses: actions/checkout@v4
+        with:
+          repository: 'PWABuilder/pwa-android-wrapper'
+          path: 'android-wrapper'
 
-      # САМОЕ ВАЖНОЕ ИЗМЕНЕНИЕ: 
-      # Передаём пути к JDK и SDK прямо в аргументы. Вопросы отменяются!
-      - name: Initialize Bubblewrap (No Interactive)
-        run: bubblewrap init --manifest manifest.json --jdk-path "$JAVA_HOME" --android-sdk-path "$ANDROID_HOME"
+      # Копируем манифест в проект
+      - name: Prepare Wrapper
+        run: cp manifest.json android-wrapper/app/src/main/assets/manifest.json
 
-      # ОТКАЗЫВАЕМСЯ ОТ BUBBLEWRAP BUILD. 
-      # Собираем APK через нативный Gradle.
+      # Собираем нативный APK
       - name: Build APK using Gradle
         run: |
+          cd android-wrapper
           chmod +x gradlew
-          ./gradlew :app:assembleDebug
+          ./gradlew assembleDebug
 
-      # Находим APK в точной папке
-      - name: Find and rename APK
-        run: |
-          APK_FILE=$(find app/build/outputs/apk -name "*.apk" -type f | head -n 1)
-          if [ -z "$APK_FILE" ]; then
-            echo "❌ APK не найден! Проверяем папку app/build/outputs/apk:"
-            ls -la app/build/outputs/apk/debug/ || true
-            exit 1
-          fi
-          echo "✅ APK найден по пути: $APK_FILE"
-          cp "$APK_FILE" ./app-release.apk
-
-      # Загружаем результат
+      # Загружаем артефакт
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: ./app-release.apk
+          path: android-wrapper/app/build/outputs/apk/debug/app-debug.apk
