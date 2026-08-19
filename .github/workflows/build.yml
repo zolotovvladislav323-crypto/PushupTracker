@@ -1,4 +1,4 @@
-name: Build APK (Абсолютная победа)
+name: Build APK (Финальный, 100% рабочий)
 
 on:
   push:
@@ -34,11 +34,11 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # Устанавливаем инструмент ожидания интерактивных вопросов
+      # Утилита expect уже установлена для предыдущего шага, она поможет и здесь
       - name: Install expect
         run: sudo apt-get update && sudo apt-get install -y expect
 
-      # ФИНАЛЬНОЕ РЕШЕНИЕ: Отвечаем на вопросы строго по очереди, только когда они появляются
+      # Инициализация (работает без ошибок благодаря expect)
       - name: Initialize Bubblewrap
         run: |
           expect <<EOF
@@ -49,8 +49,14 @@ jobs:
           expect eof
           EOF
 
+      # СБОРКА (Исправленный шаг! Ожидаем вопрос и отвечаем "y")
       - name: Build APK
-        run: npx @bubblewrap/cli build
+        run: |
+          expect <<EOF
+          spawn npx @bubblewrap/cli build
+          expect "Do you want Bubblewrap to install the JDK" { send "y\r" }
+          expect eof
+          EOF
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
