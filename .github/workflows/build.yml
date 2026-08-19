@@ -1,4 +1,4 @@
-name: Build APK (Мгновенная сборка)
+name: Build APK (Прямая сборка Gradle)
 
 on:
   push:
@@ -34,33 +34,34 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # ОПТИМИЗАЦИЯ: Убираем "update" и добавляем "no-install-recommends". 
-      # В следующий раз это займет 2 секунды вместо 6 минут!
       - name: Install expect
         run: sudo apt-get install -y --no-install-recommends expect
 
+      # Инициализация (Создаём структуру папок Android, отвечая "n" на все вопросы)
       - name: Initialize Bubblewrap
         run: |
           expect <<EOF
           spawn npx @bubblewrap/cli init --manifest manifest.json
           expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
           expect "Do you want Bubblewrap to install the Android SDK" { send "n\r" }
+          expect "Do you agree to the Android SDK terms" { send "y\r" }
           expect eof
           EOF
 
-      - name: Build APK
+      # СБОРКА APK (Здесь мы обходим проклятый bubblewrap build и используем нативный Gradle)
+      - name: Build Native APK via Gradle
         run: |
-          expect <<EOF
-          spawn npx @bubblewrap/cli build
-          expect "Do you want Bubblewrap to install the JDK" { send "n\r" }
-          expect eof
-          EOF
+          cd app
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
+      # Находим APK и выводим его в корень
       - name: Find and rename APK
         run: |
-          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          APK_FILE=$(find app/build/outputs -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ Ошибка: APK файл не найден после сборки!"
+            echo "❌ Не найден APK! Вывод структуры папок для отладки:"
+            ls -la app/build/outputs/apk/debug/ || true
             exit 1
           fi
           echo "✅ APK найден по пути: $APK_FILE"
